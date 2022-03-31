@@ -5,22 +5,17 @@ from utils import *
 ENCODING = 'utf-8'
 CHUNK_SIZE = CHUNK_SIZES[ENCODING]
 
-def max_encryptable_bytes(mod):
+def _max_encryptable_bytes(mod):
     # Every 3 digits in the decimal mod can encrypt one byte
-    # so div by 3. The subtract 1 to handle encoded messages
-    # That have the same number of digits as the modulus but
+    # so div by 3. Then subtract 1 to handle encoded messages
+    # that have the same number of digits as the modulus but
     # are larger (e.g. message=324 wraps a mod of 211).
     return int(len(str(mod)) / 3 - 1)
 
 def generate_rsa_key(p, q):
     n = p * q
 
-    # Every 3 digits in the decimal mod can encrypt one byte
-    # so div by 3. The subtract 1 to handle encoded messages
-    # That have the same number of digits as the modulus but
-    # are larger (e.g. message=324 wraps a mod of 211).
-    meb = max_encryptable_bytes(n)
-
+    meb = _max_encryptable_bytes(n)
     reqd_chunk_size = CHUNK_SIZES[ENCODING]
     if (meb < reqd_chunk_size):
         raise ValueError(f"RSA key gen inputs too small to encode utf-8" +
@@ -40,7 +35,7 @@ def generate_rsa_key(p, q):
         'private' : {'exp' : d, 'mod' : n},
     }
 
-def crypt(data, key):
+def _crypt(data, key):
     if data > key['mod']:
         raise ValueError("\t\tWarning: Message is too big for RSA key")
 
@@ -48,16 +43,16 @@ def crypt(data, key):
     # exponentiation
     return pow(data, key['exp'], key['mod'])
 
-def encrypt(string_data, key):
+def rsa_encrypt(string_data, key):
     encoded = string_data.encode(ENCODING)
-    meb = max_encryptable_bytes(key['mod'])
+    meb = _max_encryptable_bytes(key['mod'])
     chunked = [encoded[i:i+meb] for i in range(0, len(encoded), meb)]
-    return [crypt(int.from_bytes(c, byteorder='little'), key) for c in chunked]
+    return [_crypt(int.from_bytes(c, byteorder='little'), key) for c in chunked]
 
-def decrypt(cipher_iter, key):
+def rsa_decrypt(cipher_iter, key):
     out = ''
     for c in cipher_iter:
-        out += int_to_string(crypt(c, key), ENCODING)
+        out += int_to_string(_crypt(c, key), ENCODING)
     return out
 
 if __name__ == "__main__":
@@ -75,15 +70,15 @@ if __name__ == "__main__":
     print()
 
     print("Encrypting with private key...")
-    c = encrypt(m, keys['private'])
+    c = rsa_encrypt(m, keys['private'])
     print(f"Ciphertext: {c}")
     print("Decrypting with public key...")
-    print(f"Decrypted message: {decrypt(c, keys['public'])}")
+    print(f"Decrypted message: {rsa_decrypt(c, keys['public'])}")
     print()
 
     print("Encrypting with public key...")
-    c = encrypt(m, keys['public'])
+    c = rsa_encrypt(m, keys['public'])
     print(f"Ciphertext: {c}")
     print("Decrypting with private key...")
-    print(f"Decrypted message: {decrypt(c, keys['private'])}")
+    print(f"Decrypted message: {rsa_decrypt(c, keys['private'])}")
 

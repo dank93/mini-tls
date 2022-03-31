@@ -13,7 +13,7 @@ def get_smaller_odd_coprime(n):
     if n <= 3 or not isinstance(n, int):
         raise ValueError("Need integer greater than 2")
 
-    # Online literature that this value is conventional for
+    # Online literature says this value is conventional for
     # computational efficiency, though I haven't looked into
     # why
     if n > 65537: return 65537
