@@ -2,6 +2,9 @@
 
 from utils import *
 
+ENCODING = 'ascii'
+CHUNK_SIZE = CHUNK_SIZES[ENCODING]
+
 def generate_rsa_key(p, q):
     n = p * q
 
@@ -14,7 +17,8 @@ def generate_rsa_key(p, q):
     if (max_encryptable_bytes < CHUNK_SIZE):
         raise ValueError(f"RSA key gen inputs too small to encode utf-8" +
                          f" (can encrypt {max_encryptable_bytes} bytes, " +
-                         f"need {CHUNK_SIZE}, n={n})")
+                         f"need {CHUNK_SIZE}, n={n}). Alternatively, try" +
+                         f" ascii encoding")
 
     phi = (p - 1) * (q - 1)
     e = get_smaller_odd_coprime(phi)
@@ -31,7 +35,10 @@ def generate_rsa_key(p, q):
 def crypt(data, key):
     if data > key['mod']:
         raise ValueError("\t\tWarning: Message is too big for RSA key")
-    return (data ** key['exp']) % key['mod']
+
+    # Given a modulus z, python builtin pow() uses fast modular
+    # exponentiation
+    return pow(data, key['exp'], key['mod'])
 
 def encrypt(string_data, key):
     encoded = string_data.encode(ENCODING)
@@ -42,7 +49,7 @@ def encrypt(string_data, key):
 def decrypt(cipher_iter, key):
     out = ''
     for c in cipher_iter:
-        out += int_to_string(crypt(c, key))
+        out += int_to_string(crypt(c, key), ENCODING)
     return out
 
 if __name__ == "__main__":
