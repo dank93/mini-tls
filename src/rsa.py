@@ -2,8 +2,15 @@
 
 from utils import *
 
-ENCODING = 'ascii'
+ENCODING = 'utf-8'
 CHUNK_SIZE = CHUNK_SIZES[ENCODING]
+
+def max_encryptable_bytes(mod):
+    # Every 3 digits in the decimal mod can encrypt one byte
+    # so div by 3. The subtract 1 to handle encoded messages
+    # That have the same number of digits as the modulus but
+    # are larger (e.g. message=324 wraps a mod of 211).
+    return int(len(str(mod)) / 3 - 1)
 
 def generate_rsa_key(p, q):
     n = p * q
@@ -12,12 +19,13 @@ def generate_rsa_key(p, q):
     # so div by 3. The subtract 1 to handle encoded messages
     # That have the same number of digits as the modulus but
     # are larger (e.g. message=324 wraps a mod of 211).
-    max_encryptable_bytes = int(len(str(n)) / 3 - 1)
+    meb = max_encryptable_bytes(n)
 
-    if (max_encryptable_bytes < CHUNK_SIZE):
+    reqd_chunk_size = CHUNK_SIZES[ENCODING]
+    if (meb < reqd_chunk_size):
         raise ValueError(f"RSA key gen inputs too small to encode utf-8" +
-                         f" (can encrypt {max_encryptable_bytes} bytes, " +
-                         f"need {CHUNK_SIZE}, n={n}). Alternatively, try" +
+                         f" (can encrypt {meb} bytes, " +
+                         f"need {reqd_chunk_size}, n={n}). Alternatively, try" +
                          f" ascii encoding")
 
     phi = (p - 1) * (q - 1)
@@ -42,8 +50,8 @@ def crypt(data, key):
 
 def encrypt(string_data, key):
     encoded = string_data.encode(ENCODING)
-    chunked = [encoded[i:i+CHUNK_SIZE] \
-               for i in range(0, len(encoded), CHUNK_SIZE)]
+    meb = max_encryptable_bytes(key['mod'])
+    chunked = [encoded[i:i+meb] for i in range(0, len(encoded), meb)]
     return [crypt(int.from_bytes(c, byteorder='little'), key) for c in chunked]
 
 def decrypt(cipher_iter, key):
@@ -53,7 +61,12 @@ def decrypt(cipher_iter, key):
     return out
 
 if __name__ == "__main__":
-    keys = generate_rsa_key(449, 313)
+    # 2048-bit primes taken from https://stackoverflow.com/questions/22079315/i-need-2048bit-primes-in-order-to-test-the-upper-limits-of-my-rsa-program
+    keys = generate_rsa_key(
+	32317006071311007300714876688669951960444102669715484032130345427524655138867890893197201411522913463688717960921898019494119559150490921095088152386448283120630877367300996091750197750389652106796057638384067568276792218642619756161838094338476170470581645852036305042887575891541065808607552399123930385521914333389668342420684974786564569494856176035326322058077805659331026192708460314150258592864177116725943603718461857357598351152301645904403697613233287231227125684710820209725157101726931323469678542580656697935045997268352998638215525166389647960126939249806625440700685819469589938384356951833568218188663,
+	32317006071311007300714876688669951960444102669715484032130345427524655138867890893197201411522913463688717960921898019494119559150490921095088152386448283120630877367300996091750197750389652106796057638384067568276792218642619756161838094338476170470581645852036305042887575891541065808607552399123930385521914333389668342420684974786564569494856176035326322058077805659331026192708460314150258592864177116725943603718461857357598351152334063994785580370721665417662212881203104945914551140008147396357886767669820042828793708588252247031092071155540224751031064253209884099238184688246467489498721336450133889385773
+    )
+
     print("Generated RSA Keys:")
     print(keys)
     print()
