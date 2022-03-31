@@ -32,14 +32,21 @@ def get_modular_multiplicative_inverse(n, modulus):
             return i
         i += 1
 
+CHUNK_SIZES = {
+    'ascii' : 1,
+    'utf-8' : 4
+}
+ENCODING = 'ascii'
+CHUNK_SIZE = CHUNK_SIZES['ascii']
+
 # From https://stackoverflow.com/questions/69801359
 # /python-how-to-convert-a-string-to-an-integer-for-rsa-encryption
 def string_to_int(s):
-    return int.from_bytes(s.encode(), byteorder='little')
+    return int.from_bytes(s.encode(ENCODING), byteorder='little')
 
 def int_to_string(i):
     length = math.ceil(i.bit_length() / 8)
-    return i.to_bytes(length, byteorder='little').decode()
+    return i.to_bytes(length, byteorder='little').decode(ENCODING)
 
 if __name__ == '__main__':
     m = input("Enter message: ")

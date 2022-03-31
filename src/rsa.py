@@ -4,9 +4,22 @@ from utils import *
 
 def generate_rsa_key(p, q):
     n = p * q
+
+    # Every 3 digits in the decimal mod can encrypt one byte
+    # so div by 3. The subtract 1 to handle encoded messages
+    # That have the same number of digits as the modulus but
+    # are larger (e.g. message=324 wraps a mod of 211).
+    max_encryptable_bytes = int(len(str(n)) / 3 - 1)
+
+    if (max_encryptable_bytes < CHUNK_SIZE):
+        raise ValueError(f"RSA key gen inputs too small to encode utf-8" +
+                         f" (can encrypt {max_encryptable_bytes} bytes, " +
+                         f"need {CHUNK_SIZE}, n={n})")
+
     phi = (p - 1) * (q - 1)
     e = get_smaller_odd_coprime(phi)
     d = get_modular_multiplicative_inverse(e, phi)
+
     return {
         'p' : p,
         'q' : q,
@@ -17,36 +30,40 @@ def generate_rsa_key(p, q):
 
 def crypt(data, key):
     if data > key['mod']:
-        print("\t\tWarning: Message is too big for RSA key")
+        raise ValueError("\t\tWarning: Message is too big for RSA key")
     return (data ** key['exp']) % key['mod']
+
+def encrypt(string_data, key):
+    encoded = string_data.encode(ENCODING)
+    chunked = [encoded[i:i+CHUNK_SIZE] \
+               for i in range(0, len(encoded), CHUNK_SIZE)]
+    return [crypt(int.from_bytes(c, byteorder='little'), key) for c in chunked]
+
+def decrypt(cipher_iter, key):
+    out = ''
+    for c in cipher_iter:
+        out += int_to_string(crypt(c, key))
+    return out
 
 if __name__ == "__main__":
     keys = generate_rsa_key(449, 313)
     print("Generated RSA Keys:")
     print(keys)
+    print()
 
-    while True:
-        m = input("Enter message: ")
-        encoded_m = string_to_int(m)
-        if encoded_m > keys['public']['mod']:
-            print("Message too long for RSA key, please enter shorter message")
-        else:
-            break
-
-    print(f"Encoded message: {string_to_int(m)}")
+    m = input("Enter message: ")
     print()
 
     print("Encrypting with private key...")
-    c = crypt(encoded_m, keys['private'])
+    c = encrypt(m, keys['private'])
     print(f"Ciphertext: {c}")
     print("Decrypting with public key...")
-    print(f"Decrypted encoded message: {crypt(c, keys['public'])}")
-    print(f"Decrypted message: {int_to_string(crypt(c, keys['public']))}")
+    print(f"Decrypted message: {decrypt(c, keys['public'])}")
     print()
 
     print("Encrypting with public key...")
-    c = crypt(encoded_m, keys['public'])
+    c = encrypt(m, keys['public'])
     print(f"Ciphertext: {c}")
     print("Decrypting with private key...")
-    print(f"Decrypted encoded message: {crypt(c, keys['private'])}")
-    print(f"Decrypted message: {int_to_string(crypt(c, keys['private']))}")
+    print(f"Decrypted message: {decrypt(c, keys['private'])}")
+
